@@ -31,13 +31,11 @@ def admm(X, y, groups, rho, num_steps, alpha_init, beta_init, gamma_init):
     gamma = gamma_init
     obj_vals = np.zeros(num_steps)
     for k in range(num_steps):
-        #print(k)
         beta = group_lasso_prox(alpha - gamma, 1/rho, groups)
         alpha = affine_projection(X, y, beta + gamma)
         gamma = gamma + beta - alpha
         obj_vals[k] = group_lasso_penalty(beta, groups)
         times.append(time.time() - start_time)
-        #print(group_lasso_penalty(beta, groups))
     return beta, alpha, gamma, obj_vals, times
 
 def log_barrier_objective(nu, X, y, group_matrices, t):
@@ -56,8 +54,6 @@ def log_barrier_gradient(nu, X, y, group_matrices, t, precomputations):
     for i in range(len(group_matrices)):
         denom = 1 - np.linalg.norm(nu.T @ X @ group_matrices[i].T) ** 2
         reg_term += 2/(t * denom) * (precomputations[i] @ nu)
-        #t0 = np.linalg.norm(nu.T @ X @ group_matrices[i].T)
-        #reg_term += 1/(t * (1-t0) * t0) * precomputations[i] @ nu
     return y + reg_term
 
 def log_barrier_hessian(nu, X, group_matrices, t, precomputations):
@@ -69,7 +65,7 @@ def log_barrier_hessian(nu, X, group_matrices, t, precomputations):
         hessian += 4/(t * denom ** 2) * precomputations[i] @ nu_reshaped @ nu_reshaped.T @ precomputations[i].T
     return hessian
 
-def backtracking_line_search(x, dx, grad, f, a = 0.25, b = 0.5):
+def backtracking_line_search(x, dx, grad, f, a=0.25, b=0.5):
     t_line = 1
     while f(x + t_line * dx) > f(x) + a * t_line * np.dot(grad, dx):
         t_line = b * t_line
@@ -87,13 +83,10 @@ def newton(X, y, mu, t, group_matrices, precomputations, inner_eps=1e0, max_iter
             grad = log_barrier_gradient(nu, X, y, group_matrices, t, precomputations)
             hess = log_barrier_hessian(nu, X, group_matrices, t, precomputations)
             x_nt = np.linalg.solve(hess, grad)
-            #x_nt, _ = cg(hess, grad, maxiter=30)
             x_nt = -x_nt
             nt_dec = np.dot(x_nt, hess @ x_nt)
             t_inner = backtracking_line_search(nu, x_nt, grad, partial (log_barrier_objective, t=t, X=X, y=y, group_matrices=group_matrices))
             nu += t_inner * x_nt
-        #print("True objective value: ", true_objective(nu, y))
-        #print()
         obj_vec[j] = -true_objective(nu, y)
         times.append(time.time() - start_time)
         t *= mu
@@ -110,14 +103,11 @@ def truncated_newton(X, y, mu, t, group_matrices, precomputations, cgiters, inne
         while nt_dec / 2 >= inner_eps:
             grad = log_barrier_gradient(nu, X, y, group_matrices, t, precomputations)
             hess = log_barrier_hessian(nu, X, group_matrices, t, precomputations)
-            #x_nt = np.linalg.solve(hess, grad)
             x_nt, _ = cg(hess, grad, maxiter=cgiters)
             x_nt = -x_nt
             nt_dec = np.dot(x_nt, hess @ x_nt)
             t_inner = backtracking_line_search(nu, x_nt, grad, partial (log_barrier_objective, t=t, X=X, y=y, group_matrices=group_matrices))
             nu += t_inner * x_nt
-        #print("True objective value: ", true_objective(nu, y))
-       #print()
         obj_vec[j] = -true_objective(nu, y)
         times.append(time.time() - start_time)
         t *= mu
@@ -136,15 +126,12 @@ def truncated_newton_limited_hessian(X, y, mu, t, group_matrices, precomputation
             grad = log_barrier_gradient(nu, X, y, group_matrices, t, precomputations)
             if counter % 10 == 0:
                 hess = log_barrier_hessian(nu, X, group_matrices, t, precomputations)
-            #x_nt = np.linalg.solve(hess, grad)
             x_nt, _ = cg(hess, grad, maxiter=20)
             x_nt = -x_nt
             nt_dec = np.dot(x_nt, hess @ x_nt)
             t_inner = backtracking_line_search(nu, x_nt, grad, partial (log_barrier_objective, t=t, X=X, y=y, group_matrices=group_matrices))
             nu += t_inner * x_nt
             counter += 1
-        #print("True objective value: ", true_objective(nu, y))
-        #print()
         obj_vec[j] = -true_objective(nu, y)
         t *= mu
     return nu, obj_vec
@@ -167,7 +154,6 @@ def project_onto_ball(v, y, X, b, n):
         else:
             break
     u = np.linalg.inv(np.eye(X.shape[1]) + lambd * XTX) @ v
-    #print(np.linalg.norm(X @ u) ** 2 <= r_squared)
     return u + np.linalg.inv(X) @ y
 
 def project_onto_ball_cvxpy(v, y, X, b, n):
@@ -184,13 +170,10 @@ def admm_low_dimensional(X, y, groups, rho, num_steps, alpha_init, beta_init, ga
     gamma = gamma_init
     obj_vals = np.zeros(num_steps)
     for k in range(num_steps):
-        #print(k)
         beta = group_lasso_prox(alpha - gamma, 1/rho, groups)
         alpha = project_onto_ball_cvxpy(beta + gamma, y, X, b, X.shape[0])
-        #print(1/(2 * X.shape[0]) * np.linalg.norm(X @ alpha - y)**2 <= b**2)
         gamma = gamma + beta - alpha
         obj_vals[k] = group_lasso_penalty(beta, groups)
-        #print(group_lasso_penalty(beta, groups))
     return beta, alpha, gamma, obj_vals
 
 #BELOW CODE NOT WORKING YET
